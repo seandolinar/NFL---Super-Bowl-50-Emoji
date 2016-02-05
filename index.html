@@ -2,13 +2,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!--<script src="//cdnjs.cloudflare.com/ajax/libs/twemoji/1.3.2/twemoji.min.js"></script>-->
-<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>-->
-<script src="jquery-1.10.2.min.js"></script>
-<script src="d3.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<!--<script src="jquery-1.10.2.min.js"></script>-->
+<script src="//d3js.org/d3.v3.min.js"></script>
+<!--<script src="d3.min.js"></script>-->
 
 <style>
     body {
-        width: 600px;
+        width: 100%;
+        min-width: 310px;
+        max-width: 700px;
+        font-family: Arial, Helvetica, sans-serif
+    }
+    
+    .d3-container {
+        width: 100%;
+        position: relative;
+        text-align: center;
     }
     
     .node circle {
@@ -22,32 +32,121 @@
         pointer-events: none;
         text-anchor: middle;
     }
+    .text.linechart {
+        fill: #909090
+    }
     
     .link {
         stroke: #999;
         stroke-opacity: .6;
     }
+    .button-container {
+        margin: 0 auto;
+    }
+    
+    .button-hash {
+        width: 25%;
+        min-width: 100px;
+        margin: 5px 10px;
+        border-radius: 10px;
+        text-align: center;
+        line-height: 2;
+        display: inline-block;
+        border: 3px solid black;
+    }
+    .popup-bkgd {
+        position: absolute;
+        top: 0px;
+        background: rgba(0,0,0,.5);
+        height: 100%;
+        width: 100%;
+    }
+    
+    .popup {
+        font-size: 9px;
+        background-color: rgba(255,255,255,.9);
+        position: absolute;
+        overflow: scroll;
+        top: 10%;
+        left: 25%;
+        width: 50%;
+        height: 50%;
+        margin: 0 auto;
+    }
+    .viz-title {
+        text-align: left;
+        padding-top: 15px;
+        padding-left: 5%;
+        padding-right: 5%; 
+        font-size: 26px;
+}
 </style>
 
 <body>
-    <!--<script src="//d3js.org/d3.v3.min.js"></script>-->
-    <div class="button-hash" id="0">#Broncos</div>
-    <div class="button-hash" id="1">#KeepPounding</div>
-
+    <div class="d3-container">
+        <div class="viz-title">Super Bowl Emoji</div>
+        <div class="button-container">
+            <div class="button-hash" id="0" data-active="false">#Broncos</div>
+            <div class="button-hash" id="1" data-active="false">#KeepPounding</div>
+            <div class="button-hash" id="2" data-active="false">#SB50</div>
+            <div class="button-hash" id="3" data-active="false">Manning</div>
+            <div class="button-hash" id="4" data-active="false">Newton</div>
+        </div>
+        <div class="chart-line"></div>
+        <div class="chart-bubble"></div>
+    </div>
     <script>
+        Array.prototype.getUnique = function(){
+            var u = {}, a = [];
+            for(var i = 0, l = this.length; i < l; ++i){
+                if(u.hasOwnProperty(this[i])) {
+                    continue;
+                }
+                a.push(this[i]);
+                u[this[i]] = 1;
+            }
+            return a;
+        }
+                
+        
         
         function build() {
-           
-            var width = Math.max(320, window.innerWidth),
-                height = 1000,
+            
+            var width = Math.min(Math.max(320, window.innerWidth),700),
+                height = 800,
                 padding = 1, // separation between same-color nodes
                 clusterPadding = 2, // separation between different-color nodes
                 maxRadius = 20,
-                mult = width / 320;
+                mult = Math.pow((width / 320),1.5);
+                          
+            var startPre;
+            var startGame;
+            var endGame;
+            var endPost;          
+                           
+            var color = function(group) {
+                colorObj = {
+                            0:'orange',
+                            1:'steelblue',
+                            2:'gold',
+                            3:'red',
+                            4:'green'
+                            }
+                
+                return colorObj[group]
+            }
 
-            var color = d3.scale.category10();
+            $('.button-hash').each(function() {
+                $(this).css('border-color',color(this.id))
+            })
+            
+            
+            var line = d3.select('.chart-line').append("svg")
+                .attr("width", width)
+                .attr("height", height/6);
 
-            var svg = d3.select("body").append("svg")
+
+            var svg = d3.select('.chart-bubble').append("svg")
                 .attr("width", width)
                 .attr("height", height);
 
@@ -55,134 +154,220 @@
                 
                 if (error) throw error;
                 
-                
                 //finds all the date chunks
                 var datetimeUnique = graph.nodes.map(function(d) {
                     return d.datetime;  
-                }).filter((value, index, self) => self.indexOf(value) === index)
+                }).getUnique()
                 
                 var groupArray = graph.nodes.map(function(d) {
                     return d.group;  
-                }).filter((value, index, self) => self.indexOf(value) === index)
+                }).getUnique()
                 
                 //gets date chunks for interface
-                var a = new Date(datetimeUnique[0])
+                var timeRange = d3.extent(datetimeUnique)
+                var startPreT = timeRange[0]
+                var startGameT = Date.UTC(2016,1,4,22,00)
+                var endGameT = Date.UTC(2016,1,5,1,00)
+                var endPostT = timeRange[1]
                 
-                
+                var outArray = []
+                var timeSeriesArray = []
+                var idArray = []
+                var lineMax;
+                var nodesArray;
+                var force;
+                var max;
+               
+               var clusters;
+               
                 //filters date chunks
-                graph.nodes = graph.nodes.filter(function(d) {
-                    return d.datetime > datetimeUnique[0]
-                })
-
-
-                
-                outArray = []
-                groupArray.forEach(function(value, index) {
+                function buildData(a,b) {
                     
-                    var groupNodes = graph.nodes.filter(function(d) {
-                        return d.group === value
+                    outArray = []
+                    timeSeriesArray = []
+                    graph.nodes = graph.nodes.filter(function(d) {
+                        return d.datetime >= a && d.datetime <= b
                     })
-                    
-                    var nodesArray = groupNodes.map(function(d) {return d.name;}).filter((value, index, self) => self.indexOf(value) === index)
 
-                    nodesArray.forEach(function(d) {
-                        outArray.push({"group": value, "name": d, "radius": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.radius; }).reduce(function(p,c) {return p + c; }),
-                        "text": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.text; }).reduce(function(p,c) {return p.concat(c); })
+                    groupArray.forEach(function(value, index) {
+                        
+                        var groupNodes = graph.nodes.filter(function(d) {
+                            return d.group === value
                         })
 
+                        datetimeUnique.forEach(function(dt, i) {
+                            groupTimeNodes = groupNodes.filter(function(d) {
+                                return d.datetime == dt
+                            })
+                            emojiCount = groupTimeNodes.reduce(function(p,c) {
+                                return p + c.radius
+                            },0)
+                            timeSeriesArray.push({"group": value, "datetime": dt, "emoji": emojiCount})
+                        })
+
+
+                        nodesArray = groupNodes.map(function(d) {return d.name;}).getUnique()
+
+                        nodesArray.forEach(function(d) {
+                            outArray.push({"group": value, "name": d, "radius": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.radius; }).reduce(function(p,c) {return p + c; }),
+                            "text": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.text; }).reduce(function(p,c) {return p.concat(c); })
+                            })
+                        })
                     })
-                })
-                
-                console.log(outArray) // STOPPED!
-               
-                var max = graph.nodes.reduce(function(prev,cur) {
 
-                    return Math.max(prev, cur.radius)
-                }, 0)
+                    lineMax = timeSeriesArray.reduce(function(p,c) {
 
-
-                var m = 2
-                var clusters = new Array();
-
-                //finds the largest node in cluster
-                outArray.forEach(function(d, i) {
+                        return Math.max(p,c.emoji)
+                    },0)
                     
-                    outArray[i].radius = Math.sqrt((d.radius*mult)/Math.PI*50) 
-                    outArray[i].y = d.group * height / m
-                    if (!clusters[d.group] || (d.radius > clusters[d.group].radius)) 
-                        {
-                            clusters[d.group] = d;
-                        }
-                    maxRadius = Math.max(maxRadius, d.radius)
-                })
-                outArray = outArray.filter(function(d) {
-                    return d.radius > 0;
-                })
-                
-                
-                
-                var force = d3.layout.force()
-                    .gravity(.01)
-                    .charge(-2)
-                    .friction(.8)
-                    .size([width, height])
-                    .nodes(outArray)
-                    .start();
+                    var m = 2
+                    clusters = new Array();
+                    
+                    max = graph.nodes.reduce(function(prev,cur) {
 
-                    // var node = svg.selectAll(".node")
-                    //     .data(graph.nodes)
-                    //     .enter()
-                    //     .append('g')
-                    //     .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }) 
-                    //     .attr('class', 'node')
-                    //     .call(force.drag);
+                        return Math.max(prev, cur.radius)
+                    }, 0)
+
+                    //finds the largest node in cluster
+                    outArray.forEach(function(d, i) {
+
+                        outArray[i].radius = Math.sqrt((20*d.radius/max*mult)/Math.PI*50) 
+
+                        outArray[i].y = d.group * height / m
+                        if (!clusters[d.group] || (d.radius > clusters[d.group].radius)) 
+                            {
+                                clusters[d.group] = d;
+                            }
+                        maxRadius = Math.max(maxRadius, d.radius)
+                    })
+
+                    outArray = outArray.filter(function(d) {
+                        return d.radius/Math.pow(mult,.5) > 5;
+                    })
+
+
+                                
+                    force = d3.layout.force()
+                        .gravity(.01)
+                        .charge(-2)
+                        .friction(.8)
+                        .size([width, height])
+                        .nodes(outArray)
+                        .start();
+                }
+                buildData(startPreT,endPostT)
+
+                
+                function BuildLine() {
+                    
+                    var scaleX;
+                    var scaleY;                                  
+                    var lineGen; 
                         
-                    // node.append('circle')
-                    //     .attr('r', function(d) {
-                    //                 return d.radius;
-                    //             })
-                    //             .style('fill', function(d) {
-                    //                 return color(d.group)
-                    //             })
+                    this.initialize = function() {
                         
-                    // node.append('image')
-                    //     .attr('xlink:href', function(d) {
+                        var fontSize = width < 400 ? '14px' : width < 500 ? '20px' : width < 700 ? '26px' : null
+                        var titleSize = width < 400 ? '20px' : width < 500 ? '24px' : width >= 500 ? '30px' : null
+                        var buttonFontSize = width < 500 ? '12px' : width < 600 ? '16px' : width >= 600 ? '20px' : null
+                        
+                        $('.viz-title').css('font-size', titleSize)
+                        $('.button-hash').css('font-size', buttonFontSize)
+                        
+                        scaleX = d3.scale.linear()
+                            .domain(timeRange)
+                            .range([0,width])
+                        
+                        scaleY = d3.scale.linear()
+                            .domain([0,lineMax])   
+                            .range([height/6-2, 0])
+                        
+                        lineGen = d3.svg.line()
+                            .x(function(d,i) { return scaleX(d.datetime); })
+                            .y(function(d) { return scaleY(d.emoji); })
+                            .interpolate("linear")
+                        
+                        startPre = scaleX(startPreT)//scaleX(Date.UTC(2016,1,4,20,00))
+                        startGame = scaleX(startGameT)
+                        endGame = scaleX(endGameT)
+                        endPost = scaleX(endPostT)//scaleX(Date.UTC(2016,1,5,23,00))
                             
-                    //         if (d.name.indexOf('.png') !== -1) {
-                    //             return 'img-apple-160/' + d.name
-                    //         }
-                    //         else {
-                    //             return null
-                    //         }
-                    //     })
-                    //     .attr('width', function(d) {return d.radius + 'px'})
-                    //     .attr('height', function(d) {return d.radius + 'px'})
-                    //     .attr('x', function(d) {return -d.radius/2 + 'px'})
-                    //     .attr('y', function(d) {return -d.radius/2 + 'px'})
-                    
-                    // node.filter(function(d){
-                    //         return d.name.indexOf('.png') === -1
-                    //     })
-                    //     .append('text')
-                    //     .text(function(d) { return d.name;})
-                    //     .attr('width', function(d) {return d.radius + 'px'})
-                    //     .attr('height', function(d) {return d.radius + 'px'})
-                    //     .attr('x', function(d) {return 0 + 'px'})
-                    //     .attr('y', function(d) {return 5 + 'px'})
-                    //     .style('font-size', '10px')
-                    //     .attr('text-anchor', 'middle')
-                
+                        line.selectAll('*').remove()
                         
-                    //cools off the sorting
-                    //  node.transition()
-                    //     .duration(750)
-                    //     .delay(function(d, i) { return i * 5; })
-                    //     .attrTween("r", function(d) {
-                    //         var i = d3.interpolate(0, d.radius);
-                    //         return function(t) { return d.radius = i(t); };
-                    //     });
+                        //pregame
+                        line.append('rect')
+                            .attr('x', startPre)
+                            .attr('width', startGame - startPre)
+                            .attr('y', scaleY(lineMax))
+                            .attr('height', scaleY(0))
+                            .style('fill', 'yellow')
+                            .attr('class', 'time pre')
+                            .attr('data-time', 'pre')
+                            
+                        line.append('text')
+                            .attr('x', (startPre+startGame)/2)
+                            .attr('y', scaleY(0)/2)
+                            .attr('text-anchor','middle')
+                            .attr('class','text linechart time pre')
+                            .style('font-size', fontSize)
+                            .text('Pregame')
+                            
+                        //during the game
+                        line.append('rect')
+                            .attr('x', startGame)
+                            .attr('width', endGame - startGame)
+                            .attr('y', scaleY(lineMax))
+                            .attr('height', scaleY(0))
+                            .style('fill', 'green')
+                            .attr('class', 'time game')
+                            .attr('data-time', 'game')
+                            
+                        line.append('text')
+                            .attr('x', (startGame+endGame)/2)
+                            .attr('y', scaleY(0)/2)
+                            .attr('text-anchor','middle')
+                            .attr('class','text linechart time game')
+                            .style('font-size', fontSize)
+                            .text('In Game')
+                            
+                        //after the game
+                        line.append('rect')
+                            .attr('x', endGame)
+                            .attr('width', endPost - endGame)
+                            .attr('y', scaleY(lineMax))
+                            .attr('height', scaleY(0))
+                            .style('fill', 'red')
+                            .attr('class', 'time post')
+                            .attr('data-time', 'post')
+                            
+                        line.append('text')
+                            .attr('x', (endPost + endGame)/2)
+                            // .attr('width', startGame - startPre)
+                            .attr('y', scaleY(0)/2)
+                            .attr('text-anchor','middle')
+                            .attr('class','text linechart time post')
+                            .style('font-size', fontSize)
+                            .text('Postgame')
                         
+                    }        
+                                          
+                    this.buildSeries = function(dataGroup) {
                         
+                        d3.selectAll('path').remove()
+                        dataGroup.forEach(function(d, i) {
+
+                            line.append('path')
+                                .attr('d', lineGen(d.values))
+                                .attr('stroke', color(d.values[0].group) )
+                                .attr('stroke-width', 3)
+                                .attr('fill', 'none')
+                                .attr('line-' + d.values[0].group);
+                        });
+
+                    }
+                }     
+                var chartLine = new BuildLine()
+                chartLine.initialize()
+
                 // Move d to be adjacent to the cluster node.
                 function cluster(alpha) {
                     return function(d) {
@@ -194,11 +379,11 @@
                             r = d.radius + cluster.radius;
 
                         if (l != r) {
-                        l = (l - r) / l * alpha;
-                        d.x -= x *= l;
-                        d.y -= y *= l;
-                        cluster.x += x;
-                        cluster.y += y;
+                            l = (l - r) / l * alpha;
+                            d.x -= x *= l;
+                            d.y -= y *= l;
+                            cluster.x += x;
+                            cluster.y += y;
                         }
                     };
                 }
@@ -232,43 +417,26 @@
                     };
                 }
 
-
-            // force.on("tick", function(e) {
-
-            //     node
-            //     .each(cluster(10 * e.alpha * e.alpha))
-            //     .each(collide(.1))
-            //     .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
-            // });   
-            
             window.addEventListener("resize", function() { 
+                
                 force.stop()
-                var width = Math.max(320, window.innerWidth),
-                    height = 1000,
-                    mult = 320/width
-                    
-                // graph.nodes.forEach(function(d, i) {
-                    
-                //     graph.nodes[i].radius = Math.sqrt((d.radius*mult)/Math.PI*50) 
-
-                //     if (!clusters[d.group] || (d.radius > clusters[d.group].radius)) 
-                //         {
-                //             clusters[d.group] = d;
-                //         }
-                //     maxRadius = Math.max(maxRadius, d.radius)
-                // })
-                // graph.nodes = graph.nodes.filter(function(d) {
-                //     return d.radius > 0;
-                // })
+                var node = svg.selectAll(".node")
                 
-                // circles.data(graph.nodes).attr('r', function(d) {console.log(d.radius); return d.radius})
+                width = Math.min(Math.max(320, window.innerWidth),700),
+                height = 1000,
+                mult = 320/width
                 
-                force.size([width, height])
+                force.size([width, height])             
 
-                d3.select('svg')
+                svg
                     .attr("width", width)
                     .attr("height", height);
-
+                    
+                line
+                    .attr('width', width)
+                    .attr('height', height/6)
+                    
+                chartLine.initialize()
 
                 force.on("tick", function(e) {
 
@@ -277,36 +445,85 @@
                     .each(collide(.1))
                     .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
                 });  
-                                force.start()
+                force.start()
             })
             
-            function removeGroup() {
-
-                node = svg.selectAll(".node")
-                idArray.push(parseInt(this.id))
-
-                newNodes = force.nodes().filter(function(d) {
-
-                    return idArray.indexOf(d.group) != -1
-                })
+            function nodeClick() {
+                    // textArray = d3.select(this).datum().text
+                    // console.log(textArray)
+                    // $('.d3-container').append($('<div></div>').attr('class','popup-bkgd').append($('<div></div>').attr('class','popup').html(textArray.join('<br/>'))))
+                    // $('.popup-bkgd').click(function() {
+                    //     $(this).remove()
+                    // })
+            }
                 
+            function toggleGroup() {
+                
+                node = svg.selectAll(".node")
+                var buttonId = this.id
+                var button = $(this)
+                var idArrayOut = []
+                
+                if (button.attr('data-active') == 'true') {
+                  
+                  idArray.forEach(function(d) {
+                      
+                      d != buttonId ? idArrayOut.push(d) : null
+                  })
+                  idArray = idArrayOut.slice(0)
+                  button.attr('data-active', 'false')
+                  button.css('background-color', 'white')
+                }
+                else {
+                   idArray.push(parseInt(buttonId)) 
+                   button.attr('data-active', 'true')
+                   button.css('background-color', color(buttonId))
+                }
+                buildSomething()
+            }
+            
+            function buildSomething() {
+                
+                node = svg.selectAll(".node")
+
+                var dataGroup = d3.nest()
+                    .key(function(d) {
+                        return d.group;
+                    })
+                    .entries(timeSeriesArray);
+
+                arrayFilter = function(d) {
+                    return idArray.indexOf(d.group) != -1
+                }
+                newNodes = force.nodes().filter(arrayFilter) //this is why stuff isn't updating
+                dataGroup = dataGroup.filter(function(d) {
+                    return idArray.indexOf(parseInt(d.key)) != -1
+                })
+                                   
+                chartLine.buildSeries(dataGroup)
+                
+                
+                //builds bubbles//
                 node = node.data(newNodes, function(d) { return d.index;});
-                //node.enter()
+
                 node.exit().remove();
 
                 node.enter().append('g')
                 .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }) 
                 .attr('class', 'node')
+                .on('click', nodeClick)
                 .call(force.drag);
                 
-                node.append('circle')
+                node.append('circle').attr('class', 'node-circle')
+                             
+                node.selectAll('.node-circle')
                     .attr('r', function(d) {
-                                return d.radius;
-                            })
-                            .style('fill', function(d) {
-                                return color(d.group)
-                            })
-                    
+                        return d.radius;
+                    })
+                    .style('fill', function(d,i) {
+                        return color(d.group)
+                    })
+                        
                 node.append('image')
                     .attr('xlink:href', function(d) {
                         
@@ -342,19 +559,60 @@
                     .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
                 });   
                 force.start()
-                        d3.selectAll('.node').on('click', function() {
-            textArray = d3.select(this).datum().text
-            console.log(textArray)
-        })
-                
-                  
             }
+                      
+            $('.button-hash').click(toggleGroup)
             
-            var idArray = []
-            $('.button-hash').click(removeGroup)
+            $('.time').click(function() {
+
+                buildData(startGameT,endGameT)
+                svg.selectAll(".node").remove()
+                buildSomething()
+            })
+          
+            window.addEventListener("resize", function() { 
+                
+                force.stop()
+                var node = svg.selectAll(".node")
+                
+                width = Math.max(320, window.innerWidth),
+                height = 1000,
+                mult = 320/width
+                
+                force.size([width, height])             
+
+                svg
+                    .attr("width", width)
+                    .attr("height", height);
+                    
+                line
+                    .attr('width', width)
+                    .attr('height', height/6)
+                    
+                chartLine.initialize()
+
+                force.on("tick", function(e) {
+
+                    node
+                    .each(cluster(10 * e.alpha * e.alpha))
+                    .each(collide(.1))
+                    .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
+                });  
+                force.start()
+                
+                $('.time').click(function() {
+
+                    buildData(startGameT,endGameT)
+                    //svg.selectAll(".node").remove()
+                    buildSomething()
+                })
+            })
+          
                           
         })
+        
+
     }
         
   build()
-</script>
+    </script>
