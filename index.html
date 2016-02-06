@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
 <!--<script src="//cdnjs.cloudflare.com/ajax/libs/twemoji/1.3.2/twemoji.min.js"></script>-->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 <!--<script src="jquery-1.10.2.min.js"></script>-->
@@ -9,14 +9,17 @@
 
 <style>
     body {
+        margin: 0;
         width: 100%;
+        height: 900px;
         min-width: 310px;
-        max-width: 700px;
+        max-width: 800px;
         font-family: Arial, Helvetica, sans-serif
     }
     
     .d3-container {
         width: 100%;
+        height: 100%;
         position: relative;
         text-align: center;
     }
@@ -54,6 +57,21 @@
         display: inline-block;
         border: 3px solid black;
     }
+    .button.allday {
+        float:right; 
+        border: 1px solid black; 
+        border-radius: 15px; 
+        font-size: 10px; 
+        height: 20px;
+        width: 50px;
+        line-height: 2;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .time {
+        cursor: pointer;
+    }
+    
     .popup-bkgd {
         position: absolute;
         top: 0px;
@@ -79,20 +97,51 @@
         padding-left: 5%;
         padding-right: 5%; 
         font-size: 26px;
-}
+    }
+    .title{
+        text-align: left;
+        padding-top: 15px;
+        padding-bottom: 5px;
+        padding-left: 5%;
+        padding-right: 5%; 
+        font-size: 16px;
+    }
+    .axis path {
+	stroke: black;
+	stroke-width: 0;
+    display: none;
+    }
+
+    .axis line {
+        fill: none;
+        stroke: black;
+        stroke-width: 0;
+        shape-rendering: crispEdges;
+    }
+
+    .axis text {
+        font-size: 14px;
+    }
+
+    .axis.title {
+        font-size: 16px;
+    }
 </style>
 
 <body>
     <div class="d3-container">
-        <div class="viz-title">Super Bowl Emoji</div>
         <div class="button-container">
+            <div class="viz-title">Super Bowl 50 Emoji Use</div>
             <div class="button-hash" id="0" data-active="false">#Broncos</div>
             <div class="button-hash" id="1" data-active="false">#KeepPounding</div>
             <div class="button-hash" id="2" data-active="false">#SB50</div>
             <div class="button-hash" id="3" data-active="false">Manning</div>
             <div class="button-hash" id="4" data-active="false">Newton</div>
         </div>
+        <div class="chart title">Emoji Use Throughout the Day<div class="button allday" data-time="all">All Day</div></div>
         <div class="chart-line"></div>
+        <div class="chart title">Most Popular Emoji</div>
+        
         <div class="chart-bubble"></div>
     </div>
     <script>
@@ -111,9 +160,9 @@
         
         
         function build() {
-            
-            var width = Math.min(Math.max(320, window.innerWidth),700),
-                height = 800,
+                
+            var width = Math.min(Math.max(320, window.innerWidth),800),
+                height = $('.d3-container').innerHeight() - $('.button-container').outerHeight() - 125,
                 padding = 1, // separation between same-color nodes
                 clusterPadding = 2, // separation between different-color nodes
                 maxRadius = 20,
@@ -126,11 +175,11 @@
                            
             var color = function(group) {
                 colorObj = {
-                            0:'orange',
-                            1:'steelblue',
-                            2:'gold',
-                            3:'red',
-                            4:'green'
+                            0: '#FB4F14',
+                            1: '#0088CE',
+                            2:'#FFDE69',
+                            3:'#002244',
+                            4:'#A5ACAF'
                             }
                 
                 return colorObj[group]
@@ -143,7 +192,7 @@
             
             var line = d3.select('.chart-line').append("svg")
                 .attr("width", width)
-                .attr("height", height/6);
+                .attr("height", '125px');
 
 
             var svg = d3.select('.chart-bubble').append("svg")
@@ -153,7 +202,7 @@
             d3.json("nodes.json", function(error, graph) {
                 
                 if (error) throw error;
-                
+
                 //finds all the date chunks
                 var datetimeUnique = graph.nodes.map(function(d) {
                     return d.datetime;  
@@ -185,13 +234,15 @@
                     
                     outArray = []
                     timeSeriesArray = []
-                    graph.nodes = graph.nodes.filter(function(d) {
+                    buildNodes = graph.nodes.slice(0)
+                    
+                    buildNodes = buildNodes.filter(function(d) {
                         return d.datetime >= a && d.datetime <= b
                     })
 
                     groupArray.forEach(function(value, index) {
                         
-                        var groupNodes = graph.nodes.filter(function(d) {
+                        var groupNodes = buildNodes.filter(function(d) {
                             return d.group === value
                         })
 
@@ -223,7 +274,7 @@
                     var m = 2
                     clusters = new Array();
                     
-                    max = graph.nodes.reduce(function(prev,cur) {
+                    max = buildNodes.reduce(function(prev,cur) {
 
                         return Math.max(prev, cur.radius)
                     }, 0)
@@ -242,7 +293,7 @@
                     })
 
                     outArray = outArray.filter(function(d) {
-                        return d.radius/Math.pow(mult,.5) > 5;
+                        return d.radius/Math.pow(mult,.5) > 10;
                     })
 
 
@@ -266,7 +317,7 @@
                         
                     this.initialize = function() {
                         
-                        var fontSize = width < 400 ? '14px' : width < 500 ? '20px' : width < 700 ? '26px' : null
+                        var fontSize = width < 400 ? '14px' : width < 500 ? '20px' : width < 800 ? '26px' : null
                         var titleSize = width < 400 ? '20px' : width < 500 ? '24px' : width >= 500 ? '30px' : null
                         var buttonFontSize = width < 500 ? '12px' : width < 600 ? '16px' : width >= 600 ? '20px' : null
                         
@@ -277,9 +328,21 @@
                             .domain(timeRange)
                             .range([0,width])
                         
+                        axisX = d3.svg.axis()
+                            .scale(scaleX)
+                            .orient("bottom")
+                            .tickValues([startGameT,endGameT])
+                            .tickFormat(function(d) {
+                                var dt = new Date(d)
+                                var ampm =  dt.getHours() > 11 ? ' PM' : ' AM'
+                                return dt.getHours() % 13 + ampm
+                            })
+                            .outerTickSize(4)
+                        
+                        
                         scaleY = d3.scale.linear()
                             .domain([0,lineMax])   
-                            .range([height/6-2, 0])
+                            .range([125-20, 0])
                         
                         lineGen = d3.svg.line()
                             .x(function(d,i) { return scaleX(d.datetime); })
@@ -293,13 +356,19 @@
                             
                         line.selectAll('*').remove()
                         
+                        line.append("g")
+                            .attr("class", "axis")
+                            .attr("transform", "translate(0," + 105 + ")")
+                            .call(axisX)
+                        
+                        
                         //pregame
                         line.append('rect')
                             .attr('x', startPre)
                             .attr('width', startGame - startPre)
                             .attr('y', scaleY(lineMax))
                             .attr('height', scaleY(0))
-                            .style('fill', 'yellow')
+                            .style('fill', '#cccccc')
                             .attr('class', 'time pre')
                             .attr('data-time', 'pre')
                             
@@ -309,15 +378,16 @@
                             .attr('text-anchor','middle')
                             .attr('class','text linechart time pre')
                             .style('font-size', fontSize)
+                            .style('fill','#303030')
                             .text('Pregame')
-                            
+                                                      
                         //during the game
                         line.append('rect')
                             .attr('x', startGame)
                             .attr('width', endGame - startGame)
                             .attr('y', scaleY(lineMax))
                             .attr('height', scaleY(0))
-                            .style('fill', 'green')
+                            .style('fill', '#888888')
                             .attr('class', 'time game')
                             .attr('data-time', 'game')
                             
@@ -327,6 +397,7 @@
                             .attr('text-anchor','middle')
                             .attr('class','text linechart time game')
                             .style('font-size', fontSize)
+                            .style('fill','#eeeeee')
                             .text('In Game')
                             
                         //after the game
@@ -335,7 +406,7 @@
                             .attr('width', endPost - endGame)
                             .attr('y', scaleY(lineMax))
                             .attr('height', scaleY(0))
-                            .style('fill', 'red')
+                            .style('fill', '#cccccc')
                             .attr('class', 'time post')
                             .attr('data-time', 'post')
                             
@@ -346,6 +417,7 @@
                             .attr('text-anchor','middle')
                             .attr('class','text linechart time post')
                             .style('font-size', fontSize)
+                            .style('fill', '#303030')
                             .text('Postgame')
                         
                     }        
@@ -417,36 +489,6 @@
                     };
                 }
 
-            window.addEventListener("resize", function() { 
-                
-                force.stop()
-                var node = svg.selectAll(".node")
-                
-                width = Math.min(Math.max(320, window.innerWidth),700),
-                height = 1000,
-                mult = 320/width
-                
-                force.size([width, height])             
-
-                svg
-                    .attr("width", width)
-                    .attr("height", height);
-                    
-                line
-                    .attr('width', width)
-                    .attr('height', height/6)
-                    
-                chartLine.initialize()
-
-                force.on("tick", function(e) {
-
-                    node
-                    .each(cluster(10 * e.alpha * e.alpha))
-                    .each(collide(.1))
-                    .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
-                });  
-                force.start()
-            })
             
             function nodeClick() {
                     // textArray = d3.select(this).datum().text
@@ -473,11 +515,15 @@
                   idArray = idArrayOut.slice(0)
                   button.attr('data-active', 'false')
                   button.css('background-color', 'white')
+                  button.css('color', 'black')
                 }
                 else {
                    idArray.push(parseInt(buttonId)) 
                    button.attr('data-active', 'true')
                    button.css('background-color', color(buttonId))
+                   button.css('color', function() {
+                      return buttonId === 3 ? 'black' : 'white'
+                  })
                 }
                 buildSomething()
             }
@@ -501,8 +547,7 @@
                 })
                                    
                 chartLine.buildSeries(dataGroup)
-                
-                
+                       
                 //builds bubbles//
                 node = node.data(newNodes, function(d) { return d.index;});
 
@@ -563,20 +608,29 @@
                       
             $('.button-hash').click(toggleGroup)
             
-            $('.time').click(function() {
-
-                buildData(startGameT,endGameT)
+            function timeFilter() {
+                
+                var button = $(this)
+                timeObj = {"pre": [startPreT, startGameT], "game": [startGameT, endGameT], "post": [endGameT, endPostT], "all": [startPreT, endPostT]}
+                time = button.attr('data-time')
+                
+                $('.time').attr('stroke','')
+                button.attr('stroke','yellow').attr('stroke-width','5px')
+                
+                buildData(timeObj[time][0], timeObj[time][1])
                 svg.selectAll(".node").remove()
                 buildSomething()
-            })
+            }
+            
+            $('.time, .button.allday').click(timeFilter)
           
             window.addEventListener("resize", function() { 
                 
                 force.stop()
                 var node = svg.selectAll(".node")
                 
-                width = Math.max(320, window.innerWidth),
-                height = 1000,
+                width = Math.min(Math.max(320, window.innerWidth),800),
+                height = $('.d3-container').innerHeight() - $('.button-container').outerHeight() - 125,
                 mult = 320/width
                 
                 force.size([width, height])             
@@ -587,7 +641,7 @@
                     
                 line
                     .attr('width', width)
-                    .attr('height', height/6)
+                    .attr('height', 125)
                     
                 chartLine.initialize()
 
@@ -600,12 +654,7 @@
                 });  
                 force.start()
                 
-                $('.time').click(function() {
-
-                    buildData(startGameT,endGameT)
-                    //svg.selectAll(".node").remove()
-                    buildSomething()
-                })
+                $('.time').click(timeFilter)
             })
           
                           
