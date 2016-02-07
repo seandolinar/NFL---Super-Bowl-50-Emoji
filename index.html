@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<!--<meta name="viewport" content="width=device-width, initial-scale=1">-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <!--<script src="//cdnjs.cloudflare.com/ajax/libs/twemoji/1.3.2/twemoji.min.js"></script>-->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 <!--<script src="jquery-1.10.2.min.js"></script>-->
 <script src="//d3js.org/d3.v3.min.js"></script>
 <!--<script src="d3.min.js"></script>-->
+<link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro' rel='stylesheet' type='text/css'>
 
 <style>
     body {
         margin: 0;
         width: 100%;
-        height: 900px;
+        height: 1000px;
         min-width: 310px;
         max-width: 800px;
-        font-family: Arial, Helvetica, sans-serif
+        font-family: 'Source Sans Pro', sans-serif;
     }
     
     .d3-container {
@@ -31,12 +32,14 @@
     }
     
     text {
-        font: 28px sans-serif;
+        font-size: 28px;
+        font-family: 'Source Sans Pro', sans-serif;
         pointer-events: none;
         text-anchor: middle;
     }
     .text.linechart {
-        fill: #909090
+        fill: #909090;
+        font-size: 26px;
     }
     
     .link {
@@ -48,6 +51,7 @@
     }
     
     .button-hash {
+        font-size: 20px;
         width: 25%;
         min-width: 100px;
         margin: 5px 10px;
@@ -56,6 +60,7 @@
         line-height: 2;
         display: inline-block;
         border: 3px solid black;
+        cursor: pointer;
     }
     .button.allday {
         float:right; 
@@ -67,6 +72,8 @@
         line-height: 2;
         text-align: center;
         margin-bottom: 5px;
+        background-color: #00abc6;
+        cursor: pointer;
     }
     .time {
         cursor: pointer;
@@ -93,23 +100,26 @@
     }
     .viz-title {
         text-align: left;
+        height: 50px;
+        margin-bottom: 10px;
         padding-top: 15px;
-        padding-left: 5%;
+        padding-left: 2%;
         padding-right: 5%; 
-        font-size: 26px;
+        font-size: 30px;
+        line-height: 50px;
     }
     .title{
         text-align: left;
         padding-top: 15px;
         padding-bottom: 5px;
         padding-left: 5%;
-        padding-right: 5%; 
+        padding-right: 2%; 
         font-size: 16px;
     }
     .axis path {
-	stroke: black;
-	stroke-width: 0;
-    display: none;
+        stroke: black;
+        stroke-width: 0;
+        display: none;
     }
 
     .axis line {
@@ -126,542 +136,55 @@
     .axis.title {
         font-size: 16px;
     }
+    .hbar {
+        width: 60%;
+        height: 1px;
+        background-color: #505050;
+        margin: 15px auto;
+    }
+    @media (max-width: 600px) {
+        .button-hash {
+            font-size: 16px;
+        }
+     }
+     @media (max-width: 500px) {
+        .viz-title {
+            font-size: 24px;
+        }
+        .button-hash {
+            font-size: 12px;
+        }
+        .text.linechart{
+            font-size: 20px;
+        }
+    }  
+    @media (max-width: 400px) {
+        .viz-title {
+           font-size: 20px;
+        }
+        .text.linechart{
+            font-size: 14px;
+        }
+    }
+
 </style>
 
 <body>
     <div class="d3-container">
         <div class="button-container">
-            <div class="viz-title">Super Bowl 50 Emoji Use</div>
+            <div class="viz-title" style=""><img src="three_sports_emblem.png" style="height: 50px; float: left;"/><div style="display: inline-block;">Super Bowl 50 Emoji Use</div></div>
             <div class="button-hash" id="0" data-active="false">#Broncos</div>
             <div class="button-hash" id="1" data-active="false">#KeepPounding</div>
-            <div class="button-hash" id="2" data-active="false">#SB50</div>
+            <div class="button-hash" id="2" data-active="true" style="background-color: #FFDE69;">#SB50</div>
             <div class="button-hash" id="3" data-active="false">Manning</div>
             <div class="button-hash" id="4" data-active="false">Newton</div>
         </div>
+        <div class="hbar"></div>
         <div class="chart title">Emoji Use Throughout the Day<div class="button allday" data-time="all">All Day</div></div>
         <div class="chart-line"></div>
-        <div class="chart title">Most Popular Emoji</div>
-        
+        <div class="hbar"></div>
+        <div class="chart title">Most Popular Emoji</div>    
         <div class="chart-bubble"></div>
     </div>
-    <script>
-        Array.prototype.getUnique = function(){
-            var u = {}, a = [];
-            for(var i = 0, l = this.length; i < l; ++i){
-                if(u.hasOwnProperty(this[i])) {
-                    continue;
-                }
-                a.push(this[i]);
-                u[this[i]] = 1;
-            }
-            return a;
-        }
-                
-        
-        
-        function build() {
-                
-            var width = Math.min(Math.max(320, window.innerWidth),800),
-                height = $('.d3-container').innerHeight() - $('.button-container').outerHeight() - 125,
-                padding = 1, // separation between same-color nodes
-                clusterPadding = 2, // separation between different-color nodes
-                maxRadius = 20,
-                mult = Math.pow((width / 320),1.5);
-                          
-            var startPre;
-            var startGame;
-            var endGame;
-            var endPost;          
-                           
-            var color = function(group) {
-                colorObj = {
-                            0: '#FB4F14',
-                            1: '#0088CE',
-                            2:'#FFDE69',
-                            3:'#002244',
-                            4:'#A5ACAF'
-                            }
-                
-                return colorObj[group]
-            }
-
-            $('.button-hash').each(function() {
-                $(this).css('border-color',color(this.id))
-            })
-            
-            
-            var line = d3.select('.chart-line').append("svg")
-                .attr("width", width)
-                .attr("height", '125px');
-
-
-            var svg = d3.select('.chart-bubble').append("svg")
-                .attr("width", width)
-                .attr("height", height);
-
-            d3.json("nodes.json", function(error, graph) {
-                
-                if (error) throw error;
-
-                //finds all the date chunks
-                var datetimeUnique = graph.nodes.map(function(d) {
-                    return d.datetime;  
-                }).getUnique()
-                
-                var groupArray = graph.nodes.map(function(d) {
-                    return d.group;  
-                }).getUnique()
-                
-                //gets date chunks for interface
-                var timeRange = d3.extent(datetimeUnique)
-                var startPreT = timeRange[0]
-                var startGameT = Date.UTC(2016,1,4,22,00)
-                var endGameT = Date.UTC(2016,1,5,1,00)
-                var endPostT = timeRange[1]
-                
-                var outArray = []
-                var timeSeriesArray = []
-                var idArray = []
-                var lineMax;
-                var nodesArray;
-                var force;
-                var max;
-               
-               var clusters;
-               
-                //filters date chunks
-                function buildData(a,b) {
-                    
-                    outArray = []
-                    timeSeriesArray = []
-                    buildNodes = graph.nodes.slice(0)
-                    
-                    buildNodes = buildNodes.filter(function(d) {
-                        return d.datetime >= a && d.datetime <= b
-                    })
-
-                    groupArray.forEach(function(value, index) {
-                        
-                        var groupNodes = buildNodes.filter(function(d) {
-                            return d.group === value
-                        })
-
-                        datetimeUnique.forEach(function(dt, i) {
-                            groupTimeNodes = groupNodes.filter(function(d) {
-                                return d.datetime == dt
-                            })
-                            emojiCount = groupTimeNodes.reduce(function(p,c) {
-                                return p + c.radius
-                            },0)
-                            timeSeriesArray.push({"group": value, "datetime": dt, "emoji": emojiCount})
-                        })
-
-
-                        nodesArray = groupNodes.map(function(d) {return d.name;}).getUnique()
-
-                        nodesArray.forEach(function(d) {
-                            outArray.push({"group": value, "name": d, "radius": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.radius; }).reduce(function(p,c) {return p + c; }),
-                            "text": groupNodes.filter(function(e) {return e.name === d }).map(function(e){ return e.text; }).reduce(function(p,c) {return p.concat(c); })
-                            })
-                        })
-                    })
-
-                    lineMax = timeSeriesArray.reduce(function(p,c) {
-
-                        return Math.max(p,c.emoji)
-                    },0)
-                    
-                    var m = 2
-                    clusters = new Array();
-                    
-                    max = buildNodes.reduce(function(prev,cur) {
-
-                        return Math.max(prev, cur.radius)
-                    }, 0)
-
-                    //finds the largest node in cluster
-                    outArray.forEach(function(d, i) {
-
-                        outArray[i].radius = Math.sqrt((20*d.radius/max*mult)/Math.PI*50) 
-
-                        outArray[i].y = d.group * height / m
-                        if (!clusters[d.group] || (d.radius > clusters[d.group].radius)) 
-                            {
-                                clusters[d.group] = d;
-                            }
-                        maxRadius = Math.max(maxRadius, d.radius)
-                    })
-
-                    outArray = outArray.filter(function(d) {
-                        return d.radius/Math.pow(mult,.5) > 10;
-                    })
-
-
-                                
-                    force = d3.layout.force()
-                        .gravity(.01)
-                        .charge(-2)
-                        .friction(.8)
-                        .size([width, height])
-                        .nodes(outArray)
-                        .start();
-                }
-                buildData(startPreT,endPostT)
-
-                
-                function BuildLine() {
-                    
-                    var scaleX;
-                    var scaleY;                                  
-                    var lineGen; 
-                        
-                    this.initialize = function() {
-                        
-                        var fontSize = width < 400 ? '14px' : width < 500 ? '20px' : width < 800 ? '26px' : null
-                        var titleSize = width < 400 ? '20px' : width < 500 ? '24px' : width >= 500 ? '30px' : null
-                        var buttonFontSize = width < 500 ? '12px' : width < 600 ? '16px' : width >= 600 ? '20px' : null
-                        
-                        $('.viz-title').css('font-size', titleSize)
-                        $('.button-hash').css('font-size', buttonFontSize)
-                        
-                        scaleX = d3.scale.linear()
-                            .domain(timeRange)
-                            .range([0,width])
-                        
-                        axisX = d3.svg.axis()
-                            .scale(scaleX)
-                            .orient("bottom")
-                            .tickValues([startGameT,endGameT])
-                            .tickFormat(function(d) {
-                                var dt = new Date(d)
-                                var ampm =  dt.getHours() > 11 ? ' PM' : ' AM'
-                                return dt.getHours() % 13 + ampm
-                            })
-                            .outerTickSize(4)
-                        
-                        
-                        scaleY = d3.scale.linear()
-                            .domain([0,lineMax])   
-                            .range([125-20, 0])
-                        
-                        lineGen = d3.svg.line()
-                            .x(function(d,i) { return scaleX(d.datetime); })
-                            .y(function(d) { return scaleY(d.emoji); })
-                            .interpolate("linear")
-                        
-                        startPre = scaleX(startPreT)//scaleX(Date.UTC(2016,1,4,20,00))
-                        startGame = scaleX(startGameT)
-                        endGame = scaleX(endGameT)
-                        endPost = scaleX(endPostT)//scaleX(Date.UTC(2016,1,5,23,00))
-                            
-                        line.selectAll('*').remove()
-                        
-                        line.append("g")
-                            .attr("class", "axis")
-                            .attr("transform", "translate(0," + 105 + ")")
-                            .call(axisX)
-                        
-                        
-                        //pregame
-                        line.append('rect')
-                            .attr('x', startPre)
-                            .attr('width', startGame - startPre)
-                            .attr('y', scaleY(lineMax))
-                            .attr('height', scaleY(0))
-                            .style('fill', '#cccccc')
-                            .attr('class', 'time pre')
-                            .attr('data-time', 'pre')
-                            
-                        line.append('text')
-                            .attr('x', (startPre+startGame)/2)
-                            .attr('y', scaleY(0)/2)
-                            .attr('text-anchor','middle')
-                            .attr('class','text linechart time pre')
-                            .style('font-size', fontSize)
-                            .style('fill','#303030')
-                            .text('Pregame')
-                                                      
-                        //during the game
-                        line.append('rect')
-                            .attr('x', startGame)
-                            .attr('width', endGame - startGame)
-                            .attr('y', scaleY(lineMax))
-                            .attr('height', scaleY(0))
-                            .style('fill', '#888888')
-                            .attr('class', 'time game')
-                            .attr('data-time', 'game')
-                            
-                        line.append('text')
-                            .attr('x', (startGame+endGame)/2)
-                            .attr('y', scaleY(0)/2)
-                            .attr('text-anchor','middle')
-                            .attr('class','text linechart time game')
-                            .style('font-size', fontSize)
-                            .style('fill','#eeeeee')
-                            .text('In Game')
-                            
-                        //after the game
-                        line.append('rect')
-                            .attr('x', endGame)
-                            .attr('width', endPost - endGame)
-                            .attr('y', scaleY(lineMax))
-                            .attr('height', scaleY(0))
-                            .style('fill', '#cccccc')
-                            .attr('class', 'time post')
-                            .attr('data-time', 'post')
-                            
-                        line.append('text')
-                            .attr('x', (endPost + endGame)/2)
-                            // .attr('width', startGame - startPre)
-                            .attr('y', scaleY(0)/2)
-                            .attr('text-anchor','middle')
-                            .attr('class','text linechart time post')
-                            .style('font-size', fontSize)
-                            .style('fill', '#303030')
-                            .text('Postgame')
-                        
-                    }        
-                                          
-                    this.buildSeries = function(dataGroup) {
-                        
-                        d3.selectAll('path').remove()
-                        dataGroup.forEach(function(d, i) {
-
-                            line.append('path')
-                                .attr('d', lineGen(d.values))
-                                .attr('stroke', color(d.values[0].group) )
-                                .attr('stroke-width', 3)
-                                .attr('fill', 'none')
-                                .attr('line-' + d.values[0].group);
-                        });
-
-                    }
-                }     
-                var chartLine = new BuildLine()
-                chartLine.initialize()
-
-                // Move d to be adjacent to the cluster node.
-                function cluster(alpha) {
-                    return function(d) {
-                        var cluster = clusters[d.group];
-                        if (cluster === d) return;
-                        var x = d.x - cluster.x,
-                            y = d.y - cluster.y,
-                            l = Math.sqrt(x * x + y * y),
-                            r = d.radius + cluster.radius;
-
-                        if (l != r) {
-                            l = (l - r) / l * alpha;
-                            d.x -= x *= l;
-                            d.y -= y *= l;
-                            cluster.x += x;
-                            cluster.y += y;
-                        }
-                    };
-                }
-                        
-                function collide(alpha) {
-                    var quadtree = d3.geom.quadtree(outArray);
-                    return function(d) {
-                        var r = d.radius + maxRadius + Math.max(padding, clusterPadding),
-                            nx1 = d.x - r,
-                            nx2 = d.x + r,
-                            ny1 = d.y - r,
-                            ny2 = d.y + r;
-                        quadtree.visit(function(quad, x1, y1, x2, y2) {
-                        if (quad.point && (quad.point !== d)) {
-                            var x = d.x - quad.point.x //d.x , //changed this change back
-                                y = d.y - quad.point.y,
-                                l = Math.sqrt(x * x + y * y),
-                                r = d.radius + quad.point.radius + (d.group === quad.point.cluster ? padding : clusterPadding);
-                            if (l < r) {
-                            l = (l - r) / l * alpha;
-                            d.x -= x *= l;
-                            d.y -= y *= l;
-                            d.x = Math.max(d.radius, Math.min(width - d.radius, d.x))
-                            d.y = Math.max(d.radius, Math.min(height - d.radius, d.y))
-                            quad.point.x += x;
-                            quad.point.y += y;
-                            }
-                        }
-                        return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
-                        });
-                    };
-                }
-
-            
-            function nodeClick() {
-                    // textArray = d3.select(this).datum().text
-                    // console.log(textArray)
-                    // $('.d3-container').append($('<div></div>').attr('class','popup-bkgd').append($('<div></div>').attr('class','popup').html(textArray.join('<br/>'))))
-                    // $('.popup-bkgd').click(function() {
-                    //     $(this).remove()
-                    // })
-            }
-                
-            function toggleGroup() {
-                
-                node = svg.selectAll(".node")
-                var buttonId = this.id
-                var button = $(this)
-                var idArrayOut = []
-                
-                if (button.attr('data-active') == 'true') {
-                  
-                  idArray.forEach(function(d) {
-                      
-                      d != buttonId ? idArrayOut.push(d) : null
-                  })
-                  idArray = idArrayOut.slice(0)
-                  button.attr('data-active', 'false')
-                  button.css('background-color', 'white')
-                  button.css('color', 'black')
-                }
-                else {
-                   idArray.push(parseInt(buttonId)) 
-                   button.attr('data-active', 'true')
-                   button.css('background-color', color(buttonId))
-                   button.css('color', function() {
-                      return buttonId === 3 ? 'black' : 'white'
-                  })
-                }
-                buildSomething()
-            }
-            
-            function buildSomething() {
-                
-                node = svg.selectAll(".node")
-
-                var dataGroup = d3.nest()
-                    .key(function(d) {
-                        return d.group;
-                    })
-                    .entries(timeSeriesArray);
-
-                arrayFilter = function(d) {
-                    return idArray.indexOf(d.group) != -1
-                }
-                newNodes = force.nodes().filter(arrayFilter) //this is why stuff isn't updating
-                dataGroup = dataGroup.filter(function(d) {
-                    return idArray.indexOf(parseInt(d.key)) != -1
-                })
-                                   
-                chartLine.buildSeries(dataGroup)
-                       
-                //builds bubbles//
-                node = node.data(newNodes, function(d) { return d.index;});
-
-                node.exit().remove();
-
-                node.enter().append('g')
-                .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; }) 
-                .attr('class', 'node')
-                .on('click', nodeClick)
-                .call(force.drag);
-                
-                node.append('circle').attr('class', 'node-circle')
-                             
-                node.selectAll('.node-circle')
-                    .attr('r', function(d) {
-                        return d.radius;
-                    })
-                    .style('fill', function(d,i) {
-                        return color(d.group)
-                    })
-                        
-                node.append('image')
-                    .attr('xlink:href', function(d) {
-                        
-                        if (d.name.indexOf('.png') !== -1) {
-                            return 'img-apple-160/' + d.name
-                        }
-                        else {
-                            return null
-                        }
-                    })
-                    .attr('width', function(d) {return d.radius + 'px'})
-                    .attr('height', function(d) {return d.radius + 'px'})
-                    .attr('x', function(d) {return -d.radius/2 + 'px'})
-                    .attr('y', function(d) {return -d.radius/2 + 'px'})
-                
-                node.filter(function(d){
-                        return d.name.indexOf('.png') === -1
-                    })
-                    .append('text')
-                    .text(function(d) { return d.name;})
-                    .attr('width', function(d) {return d.radius + 'px'})
-                    .attr('height', function(d) {return d.radius + 'px'})
-                    .attr('x', function(d) {return 0 + 'px'})
-                    .attr('y', function(d) {return 5 + 'px'})
-                    .style('font-size', '10px')
-                    .attr('text-anchor', 'middle')
-            
-                force.on("tick", function(e) {
-
-                    node
-                    .each(cluster(10 * e.alpha * e.alpha))
-                    .each(collide(.1))
-                    .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
-                });   
-                force.start()
-            }
-                      
-            $('.button-hash').click(toggleGroup)
-            
-            function timeFilter() {
-                
-                var button = $(this)
-                timeObj = {"pre": [startPreT, startGameT], "game": [startGameT, endGameT], "post": [endGameT, endPostT], "all": [startPreT, endPostT]}
-                time = button.attr('data-time')
-                
-                $('.time').attr('stroke','')
-                button.attr('stroke','yellow').attr('stroke-width','5px')
-                
-                buildData(timeObj[time][0], timeObj[time][1])
-                svg.selectAll(".node").remove()
-                buildSomething()
-            }
-            
-            $('.time, .button.allday').click(timeFilter)
-          
-            window.addEventListener("resize", function() { 
-                
-                force.stop()
-                var node = svg.selectAll(".node")
-                
-                width = Math.min(Math.max(320, window.innerWidth),800),
-                height = $('.d3-container').innerHeight() - $('.button-container').outerHeight() - 125,
-                mult = 320/width
-                
-                force.size([width, height])             
-
-                svg
-                    .attr("width", width)
-                    .attr("height", height);
-                    
-                line
-                    .attr('width', width)
-                    .attr('height', 125)
-                    
-                chartLine.initialize()
-
-                force.on("tick", function(e) {
-
-                    node
-                    .each(cluster(10 * e.alpha * e.alpha))
-                    .each(collide(.1))
-                    .attr("transform", function(d) { return "translate(" + Math.max(d.radius, Math.min(width - d.radius, d.x)) + "," + Math.max(d.radius, Math.min(height - d.radius, d.y)) + ")"; });       
-                });  
-                force.start()
-                
-                $('.time').click(timeFilter)
-            })
-          
-                          
-        })
-        
-
-    }
-        
-  build()
-    </script>
+    <script src="viz_sb50_emoji.js"></script>
+</body>
